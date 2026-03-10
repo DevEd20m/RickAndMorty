@@ -10,9 +10,6 @@ build/
 # Kotlin compiler cache
 .kotlin/
 
-# Firebase — never commit secrets
-google-services.json
-
 # Local configuration
 local.properties
 *.keystore

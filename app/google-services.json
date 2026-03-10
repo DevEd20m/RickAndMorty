@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "439110858046",
+    "project_id": "rick-and-morty-app-prado",
+    "storage_bucket": "rick-and-morty-app-prado.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:439110858046:android:e8fe3c2fcefca6c529a86f",
+        "android_client_info": {
+          "package_name": "com.example.rickandmorty"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCoxlgLB4TzJiPxRnyoPx5PxXNyAQLIhZE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
