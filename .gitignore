@@ -1,10 +1,17 @@
 # Gradle
 .gradle/
+**/.gradle/
 build/
 **/build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+
+# Kotlin compiler cache
+.kotlin/
+
+# Firebase — never commit secrets
+google-services.json
 
 # Local configuration
 local.properties
