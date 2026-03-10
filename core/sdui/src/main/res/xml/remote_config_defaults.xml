@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<defaultsMap>
+    <entry>
+        <key>screen_config</key>
+        <value>{"topBar":{"title":"Rick &amp; Morty","visible":true},"banner":{"visible":false,"text":"","backgroundColor":"#6200EE","textColor":"#FFFFFF"},"card":{"imageShape":"circle","showStatusChip":true,"statusLabels":{"alive":"Alive","dead":"Dead","unknown":"Unknown"},"elevationDp":4},"errorView":{"title":"Something went wrong","retryLabel":"Try again"},"list":{"skeletonCount":6,"animationDurationMs":300}}</value>
+    </entry>
+</defaultsMap>
