@@ -68,11 +68,16 @@ import com.google.firebase.analytics.analytics
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CharacterListScreen(
-    viewModel: CharacterListViewModel = hiltViewModel()
+    viewModel: CharacterListViewModel = hiltViewModel(),
+    onThemeToggle: (isDark: Boolean) -> Unit = {}
 ) {
     val screenState: ScreenState by viewModel.screenState.collectAsState()
     val screenConfig: ScreenConfig = screenState.screenConfig
     val characters: LazyPagingItems<Character> = viewModel.characters.collectAsLazyPagingItems()
+
+    androidx.compose.runtime.LaunchedEffect(screenState.isDarkTheme) {
+        onThemeToggle(screenState.isDarkTheme)
+    }
 
     var showDemoSheet: Boolean by remember { mutableStateOf(false) }
     val demoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -94,7 +99,9 @@ fun CharacterListScreen(
             onDismiss = { showDemoSheet = false },
             onSimulateLoading = viewModel::simulateLoading,
             onSimulateError = viewModel::simulateError,
-            onRestoreRealData = viewModel::restoreRealData
+            onRestoreRealData = viewModel::restoreRealData,
+            isDarkTheme = screenState.isDarkTheme,
+            onToggleTheme = viewModel::toggleTheme
         )
     }
 

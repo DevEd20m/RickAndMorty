@@ -6,14 +6,16 @@ data class ScreenState(
     val isRefreshing: Boolean,
     val screenConfig: ScreenConfig,
     val isDemoLoading: Boolean,
-    val isDemoError: Boolean
+    val isDemoError: Boolean,
+    val isDarkTheme: Boolean
 ) {
     companion object {
         fun default(): ScreenState = ScreenState(
             isRefreshing = false,
             screenConfig = ScreenConfigDefaults.screenConfig(),
             isDemoLoading = false,
-            isDemoError = false
+            isDemoError = false,
+            isDarkTheme = true
         )
     }
 }

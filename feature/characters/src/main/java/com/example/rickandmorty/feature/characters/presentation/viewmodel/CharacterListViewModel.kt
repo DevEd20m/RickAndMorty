@@ -33,18 +33,21 @@ class CharacterListViewModel @Inject constructor(
     private val _screenConfig: MutableStateFlow<ScreenConfig> = MutableStateFlow(ScreenConfigDefaults.screenConfig())
     private val _isDemoLoading: MutableStateFlow<Boolean> = MutableStateFlow(false)
     private val _isDemoError: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val _isDarkTheme: MutableStateFlow<Boolean> = MutableStateFlow(true)
 
     val screenState: StateFlow<ScreenState> = combine(
         _isRefreshing,
         _screenConfig,
         _isDemoLoading,
-        _isDemoError
-    ) { isRefreshing, screenConfig, isDemoLoading, isDemoError ->
+        _isDemoError,
+        _isDarkTheme
+    ) { values ->
         ScreenState(
-            isRefreshing = isRefreshing,
-            screenConfig = screenConfig,
-            isDemoLoading = isDemoLoading,
-            isDemoError = isDemoError
+            isRefreshing = values[0] as Boolean,
+            screenConfig = values[1] as ScreenConfig,
+            isDemoLoading = values[2] as Boolean,
+            isDemoError = values[3] as Boolean,
+            isDarkTheme = values[4] as Boolean
         )
     }.stateIn(
         scope = viewModelScope,
@@ -73,6 +76,10 @@ class CharacterListViewModel @Inject constructor(
     fun restoreRealData() {
         _isDemoLoading.value = false
         _isDemoError.value = false
+    }
+
+    fun toggleTheme() {
+        _isDarkTheme.value = !_isDarkTheme.value
     }
 
     private fun loadScreenConfig() {
