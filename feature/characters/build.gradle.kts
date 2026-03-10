@@ -21,6 +21,11 @@ dependencies {
     // Immutable collections
     implementation(libs.kotlinx.collections.immutable)
 
+    // Paging 3
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.paging.compose)
+    testImplementation(libs.androidx.paging.testing)
+
     // Presentation base (BaseViewModel)
     implementation(project(":core:presentation"))
 

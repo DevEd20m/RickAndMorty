@@ -2,22 +2,20 @@ package com.example.rickandmorty.feature.characters.ui.screen
 
 import android.os.Bundle
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Tune
@@ -31,15 +29,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,11 +47,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.example.rickandmorty.core.sdui.model.CardConfig
 import com.example.rickandmorty.core.sdui.model.ScreenConfig
 import com.example.rickandmorty.core.sdui.renderer.Consume
 import com.example.rickandmorty.feature.characters.domain.model.Character
-import com.example.rickandmorty.feature.characters.presentation.state.CharacterUiState
 import com.example.rickandmorty.feature.characters.presentation.state.ScreenState
 import com.example.rickandmorty.feature.characters.presentation.viewmodel.CharacterListViewModel
 import com.example.rickandmorty.feature.characters.ui.components.CharacterCard
@@ -66,8 +64,6 @@ import com.example.rickandmorty.feature.characters.ui.components.StateDemoBottom
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,7 +72,7 @@ fun CharacterListScreen(
 ) {
     val screenState: ScreenState by viewModel.screenState.collectAsState()
     val screenConfig: ScreenConfig = screenState.screenConfig
-    val showBanner: Boolean = screenConfig.banner.visible
+    val characters: LazyPagingItems<Character> = viewModel.characters.collectAsLazyPagingItems()
 
     var showDemoSheet: Boolean by remember { mutableStateOf(false) }
     val demoSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -122,53 +118,49 @@ fun CharacterListScreen(
             }
         }
     ) { innerPadding ->
-        val listState: LazyListState = rememberLazyListState()
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            if (showBanner) {
+            if (screenConfig.banner.visible) {
                 screenConfig.banner.Consume()
             }
 
             PullToRefreshBox(
                 isRefreshing = screenState.isRefreshing,
-                onRefresh = viewModel::refresh,
+                onRefresh = { characters.refresh() },
                 modifier = Modifier.fillMaxSize()
             ) {
-                when (val state = screenState.uiState) {
-                    is CharacterUiState.Loading ->
+                when {
+                    screenState.isDemoLoading ->
                         LoadingSkeletonList(count = screenConfig.list.skeletonCount)
 
-                    is CharacterUiState.Success ->
-                        CharacterList(
-                            listState = listState,
-                            characters = state.characters,
-                            hasNextPage = state.hasNextPage,
-                            cardConfig = screenConfig.card,
-                            animationDurationMs = screenConfig.list.animationDurationMs,
-                            onLoadMore = viewModel::loadMore
-                        )
-
-                    is CharacterUiState.LoadingMore ->
-                        CharacterList(
-                            listState = listState,
-                            characters = state.characters,
-                            hasNextPage = true,
-                            cardConfig = screenConfig.card,
-                            animationDurationMs = screenConfig.list.animationDurationMs,
-                            onLoadMore = {},
-                            showLoadingFooter = true
-                        )
-
-                    is CharacterUiState.Error ->
+                    screenState.isDemoError ->
                         ErrorView(
-                            message = state.message,
-                            onRetry = viewModel::retry,
+                            message = "Error simulado",
+                            onRetry = viewModel::restoreRealData,
                             title = screenConfig.errorView.title,
                             retryLabel = screenConfig.errorView.retryLabel
+                        )
+
+                    characters.loadState.refresh is LoadState.Loading ->
+                        LoadingSkeletonList(count = screenConfig.list.skeletonCount)
+
+                    characters.loadState.refresh is LoadState.Error ->
+                        ErrorView(
+                            message = (characters.loadState.refresh as LoadState.Error).error.message
+                                ?: "Error desconocido",
+                            onRetry = { characters.retry() },
+                            title = screenConfig.errorView.title,
+                            retryLabel = screenConfig.errorView.retryLabel
+                        )
+
+                    else ->
+                        CharacterList(
+                            characters = characters,
+                            cardConfig = screenConfig.card,
+                            animationDurationMs = screenConfig.list.animationDurationMs
                         )
                 }
             }
@@ -178,44 +170,34 @@ fun CharacterListScreen(
 
 @Composable
 private fun CharacterList(
-    listState: LazyListState,
-    characters: List<Character>,
-    hasNextPage: Boolean,
+    characters: LazyPagingItems<Character>,
     cardConfig: CardConfig,
-    animationDurationMs: Int,
-    onLoadMore: () -> Unit,
-    showLoadingFooter: Boolean = false
+    animationDurationMs: Int
 ) {
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo }
-            .map { layoutInfo ->
-                val lastVisible: Int = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-                val totalItems: Int = layoutInfo.totalItemsCount
-                hasNextPage && totalItems > 0 && lastVisible >= totalItems - 3
-            }
-            .distinctUntilChanged()
-            .collect { shouldLoad: Boolean -> if (shouldLoad) onLoadMore() }
-    }
-
     LazyColumn(
-        state = listState,
         contentPadding = PaddingValues(vertical = 8.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        itemsIndexed(items = characters, key = { _, character -> character.id }) { _, character ->
-            CharacterCard(
-                character = character,
-                cardConfig = cardConfig,
-                modifier = Modifier.animateItem(
-                    fadeInSpec = tween(durationMillis = animationDurationMs),
-                    placementSpec = tween(durationMillis = animationDurationMs),
-                    fadeOutSpec = tween(durationMillis = animationDurationMs)
+        items(
+            count = characters.itemCount,
+            key = characters.itemKey { it.id }
+        ) { index ->
+            val character: Character? = characters[index]
+            if (character != null) {
+                CharacterCard(
+                    character = character,
+                    cardConfig = cardConfig,
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = tween(durationMillis = animationDurationMs),
+                        placementSpec = tween(durationMillis = animationDurationMs),
+                        fadeOutSpec = tween(durationMillis = animationDurationMs)
+                    )
                 )
-            )
+            }
         }
 
-        if (showLoadingFooter) {
-            item {
+        when (val appendState: LoadState = characters.loadState.append) {
+            is LoadState.Loading -> item {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -225,6 +207,20 @@ private fun CharacterList(
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
+            is LoadState.Error -> item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = appendState.error.message ?: "Error cargando más",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            else -> Unit
         }
     }
 }

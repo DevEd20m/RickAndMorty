@@ -1,18 +1,17 @@
 package com.example.rickandmorty.feature.characters.presentation.viewmodel
 
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.example.rickandmorty.core.presentation.BaseViewModel
 import com.example.rickandmorty.core.sdui.model.ScreenConfig
 import com.example.rickandmorty.core.sdui.usecase.GetScreenConfigUseCase
 import com.example.rickandmorty.feature.characters.domain.model.Character
 import com.example.rickandmorty.feature.characters.domain.usecase.GetCharactersUseCase
-import com.example.rickandmorty.feature.characters.presentation.state.CharacterUiState
-import com.example.rickandmorty.feature.characters.presentation.state.ScreenState
 import com.example.rickandmorty.feature.characters.presentation.state.ScreenConfigDefaults
+import com.example.rickandmorty.feature.characters.presentation.state.ScreenState
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,19 +27,25 @@ class CharacterListViewModel @Inject constructor(
     private val getScreenConfigUseCase: GetScreenConfigUseCase
 ) : BaseViewModel() {
 
-    private val _uiState: MutableStateFlow<CharacterUiState> = MutableStateFlow(CharacterUiState.Loading)
-    private val _isRefreshing: MutableStateFlow<Boolean> = MutableStateFlow(false)
-    private val _screenConfig = MutableStateFlow(ScreenConfigDefaults.screenConfig())
+    val characters: Flow<PagingData<Character>> = getCharactersUseCase().cachedIn(viewModelScope)
 
-    private var currentPage: Int = 1
-    private var hasNextPage: Boolean = false
+    private val _isRefreshing: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val _screenConfig: MutableStateFlow<ScreenConfig> = MutableStateFlow(ScreenConfigDefaults.screenConfig())
+    private val _isDemoLoading: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    private val _isDemoError: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     val screenState: StateFlow<ScreenState> = combine(
-        _uiState,
         _isRefreshing,
-        _screenConfig
-    ) { uiState, isRefreshing, screenConfig ->
-        ScreenState(uiState, isRefreshing, screenConfig)
+        _screenConfig,
+        _isDemoLoading,
+        _isDemoError
+    ) { isRefreshing, screenConfig, isDemoLoading, isDemoError ->
+        ScreenState(
+            isRefreshing = isRefreshing,
+            screenConfig = screenConfig,
+            isDemoLoading = isDemoLoading,
+            isDemoError = isDemoError
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -50,62 +55,24 @@ class CharacterListViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             supervisorScope {
-                launch { loadCharacters() }
                 launch { loadScreenConfig() }
             }
         }
     }
 
-    fun retry() {
-        currentPage = 1
-        hasNextPage = false
-        loadCharacters()
-    }
-
-    fun refresh() {
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            currentPage = 1
-            fetchAndUpdateCharacters(page = 1, append = false)
-            _isRefreshing.value = false
-        }
-    }
-
-    fun loadMore() {
-        val current = _uiState.value
-        if (!hasNextPage || current is CharacterUiState.LoadingMore) return
-
-        viewModelScope.launch {
-            if (current is CharacterUiState.Success) {
-                _uiState.value = CharacterUiState.LoadingMore(current.characters)
-            }
-            fetchAndUpdateCharacters(page = currentPage + 1, append = true)
-        }
-    }
-
     fun simulateLoading() {
-        _uiState.value = CharacterUiState.Loading
+        _isDemoLoading.value = true
+        _isDemoError.value = false
     }
 
     fun simulateError() {
-        _uiState.value = CharacterUiState.Error("Simulated error for demo")
+        _isDemoError.value = true
+        _isDemoLoading.value = false
     }
 
     fun restoreRealData() {
-        currentPage = 1
-        hasNextPage = false
-        loadCharacters()
-    }
-
-    private fun loadCharacters() {
-        launchWithErrorHandling(
-            onError = { throwable ->
-                _uiState.value = CharacterUiState.Error(throwable.message ?: "An unexpected error occurred")
-            }
-        ) {
-            _uiState.value = CharacterUiState.Loading
-            fetchAndUpdateCharacters(page = 1, append = false)
-        }
+        _isDemoLoading.value = false
+        _isDemoError.value = false
     }
 
     private fun loadScreenConfig() {
@@ -113,40 +80,5 @@ class CharacterListViewModel @Inject constructor(
             val config: ScreenConfig = getScreenConfigUseCase()
             _screenConfig.value = config
         }
-    }
-
-    private suspend fun fetchAndUpdateCharacters(page: Int, append: Boolean) {
-        val result: Result<Pair<List<Character>, String?>> = getCharactersUseCase(page)
-        result.fold(
-            onSuccess = { (characters, nextPage) ->
-                hasNextPage = nextPage != null
-                currentPage = page
-
-                val existingList: ImmutableList<Character> =
-                    if (append && _uiState.value is CharacterUiState.LoadingMore) {
-                        (_uiState.value as CharacterUiState.LoadingMore).characters
-                    } else {
-                        persistentListOf()
-                    }
-
-                _uiState.value = CharacterUiState.Success(
-                    characters = (existingList + characters).toImmutableList(),
-                    hasNextPage = hasNextPage
-                )
-            },
-            onFailure = { throwable ->
-                val current: CharacterUiState = _uiState.value
-                if (append && current is CharacterUiState.LoadingMore) {
-                    _uiState.value = CharacterUiState.Success(
-                        characters = current.characters,
-                        hasNextPage = hasNextPage
-                    )
-                } else {
-                    _uiState.value = CharacterUiState.Error(
-                        throwable.message ?: "An unexpected error occurred"
-                    )
-                }
-            }
-        )
     }
 }
