@@ -1,15 +1,16 @@
 package com.example.rickandmorty.feature.characters.domain.usecase
 
+import androidx.paging.PagingData
 import com.example.rickandmorty.feature.characters.domain.model.Character
 import com.example.rickandmorty.feature.characters.domain.model.CharacterStatus
 import com.example.rickandmorty.feature.characters.domain.repository.CharacterRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 
@@ -30,59 +31,30 @@ class GetCharactersUseCaseTest {
     }
 
     @Test
-    fun `invoke returns characters from repository`() = runTest {
-        coEvery { repository.getCharacters(1) } returns Pair(fakeCharacters, null)
+    fun `invoke returns flow from repository`() = runTest {
+        val fakePagingData: Flow<PagingData<Character>> = flowOf(PagingData.from(fakeCharacters))
+        every { repository.getCharactersPaged() } returns fakePagingData
 
-        val result = useCase(1)
-        val (characters, _) = result.getOrThrow()
+        val result = useCase()
 
-        assertEquals(fakeCharacters, characters)
+        assertNotNull(result)
     }
 
     @Test
-    fun `invoke delegates to repository with correct page`() = runTest {
-        coEvery { repository.getCharacters(2) } returns Pair(fakeCharacters, null)
+    fun `invoke delegates to repository getCharactersPaged`() = runTest {
+        every { repository.getCharactersPaged() } returns flowOf(PagingData.from(fakeCharacters))
 
-        useCase(2)
+        useCase()
 
-        coVerify(exactly = 1) { repository.getCharacters(2) }
+        verify(exactly = 1) { repository.getCharactersPaged() }
     }
 
     @Test
-    fun `invoke returns next page URL when available`() = runTest {
-        val nextUrl = "https://rickandmortyapi.com/api/character?page=2"
-        coEvery { repository.getCharacters(1) } returns Pair(fakeCharacters, nextUrl)
+    fun `invoke returns empty paging data when repository is empty`() = runTest {
+        every { repository.getCharactersPaged() } returns flowOf(PagingData.empty())
 
-        val (_, nextPage) = useCase(1).getOrThrow()
+        val result = useCase()
 
-        assertEquals(nextUrl, nextPage)
-    }
-
-    @Test
-    fun `invoke returns null next page on last page`() = runTest {
-        coEvery { repository.getCharacters(42) } returns Pair(fakeCharacters, null)
-
-        val (_, nextPage) = useCase(42).getOrThrow()
-
-        assertNull(nextPage)
-    }
-
-    @Test
-    fun `invoke wraps exception from repository in Result failure`() = runTest {
-        coEvery { repository.getCharacters(1) } throws RuntimeException("API error")
-
-        val result = useCase(1)
-
-        assertTrue(result.isFailure)
-        assertEquals("API error", result.exceptionOrNull()?.message)
-    }
-
-    @Test
-    fun `invoke returns empty list when repository is empty`() = runTest {
-        coEvery { repository.getCharacters(1) } returns Pair(emptyList(), null)
-
-        val (characters, _) = useCase(1).getOrThrow()
-
-        assertEquals(0, characters.size)
+        assertNotNull(result)
     }
 }

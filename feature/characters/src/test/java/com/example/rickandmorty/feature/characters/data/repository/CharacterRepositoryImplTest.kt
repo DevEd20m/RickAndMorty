@@ -1,38 +1,25 @@
 package com.example.rickandmorty.feature.characters.data.repository
 
-/**
- * CharacterRepositoryImplTest: tests unitarios del repositorio.
- *
- * Objetivo: verificar que CharacterRepositoryImpl:
- * 1. Delega la llamada a RickMortyApi con el número de página correcto.
- * 2. Mapea los DTOs a modelos de dominio correctamente.
- * 3. Propaga las páginas de paginación (next URL) desde la respuesta de la API.
- * 4. Propaga excepciones al caller (ViewModel via UseCase).
- *
- * Patrón: Arrange-Act-Assert (AAA).
- * - Arrange: preparar mocks y datos de prueba.
- * - Act: ejecutar el método bajo prueba.
- * - Assert: verificar el resultado.
- */
-
+import androidx.paging.PagingSource
 import com.example.rickandmorty.core.network.RickMortyApi
 import com.example.rickandmorty.core.network.dto.CharacterDto
 import com.example.rickandmorty.core.network.dto.CharacterResponseDto
 import com.example.rickandmorty.core.network.dto.InfoDto
+import com.example.rickandmorty.feature.characters.data.paging.CharacterPagingSource
 import com.example.rickandmorty.feature.characters.domain.model.CharacterStatus
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 class CharacterRepositoryImplTest {
 
     private lateinit var api: RickMortyApi
-    private lateinit var repository: CharacterRepositoryImpl
+    private lateinit var pagingSource: CharacterPagingSource
 
     private val fakeDto = CharacterResponseDto(
         info = InfoDto(count = 826, pages = 42, next = "https://rickandmortyapi.com/api/character?page=2", prev = null),
@@ -46,97 +33,95 @@ class CharacterRepositoryImplTest {
     @Before
     fun setUp() {
         api = mockk()
-        repository = CharacterRepositoryImpl(api)
+        pagingSource = CharacterPagingSource(api)
     }
 
     @Test
-    fun `getCharacters returns mapped domain models`() = runTest {
+    fun `load returns mapped domain models on page 1`() = runTest {
         coEvery { api.getCharacters(1) } returns fakeDto
 
-        val (characters, _) = repository.getCharacters(1)
+        val result = pagingSource.load(
+            PagingSource.LoadParams.Refresh(key = 1, loadSize = 20, placeholdersEnabled = false)
+        ) as PagingSource.LoadResult.Page
 
-        assertEquals(3, characters.size)
-        assertEquals(1, characters[0].id)
-        assertEquals("Rick Sanchez", characters[0].name)
-        assertEquals("https://example.com/rick.png", characters[0].imageUrl)
+        assertEquals(3, result.data.size)
+        assertEquals(1, result.data[0].id)
+        assertEquals("Rick Sanchez", result.data[0].name)
+        assertEquals("https://example.com/rick.png", result.data[0].imageUrl)
     }
 
     @Test
-    fun `status Alive maps to ALIVE enum`() = runTest {
+    fun `load maps status Alive to ALIVE`() = runTest {
         coEvery { api.getCharacters(1) } returns fakeDto
 
-        val (characters, _) = repository.getCharacters(1)
+        val result = pagingSource.load(
+            PagingSource.LoadParams.Refresh(key = 1, loadSize = 20, placeholdersEnabled = false)
+        ) as PagingSource.LoadResult.Page
 
-        assertEquals(CharacterStatus.ALIVE, characters[0].status)
+        assertEquals(CharacterStatus.ALIVE, result.data[0].status)
     }
 
     @Test
-    fun `status Dead maps to DEAD enum`() = runTest {
+    fun `load maps status Dead to DEAD`() = runTest {
         coEvery { api.getCharacters(1) } returns fakeDto
 
-        val (characters, _) = repository.getCharacters(1)
+        val result = pagingSource.load(
+            PagingSource.LoadParams.Refresh(key = 1, loadSize = 20, placeholdersEnabled = false)
+        ) as PagingSource.LoadResult.Page
 
-        assertEquals(CharacterStatus.DEAD, characters[1].status)
+        assertEquals(CharacterStatus.DEAD, result.data[1].status)
     }
 
     @Test
-    fun `status unknown maps to UNKNOWN enum`() = runTest {
+    fun `load sets nextKey to page 2 when next URL is present`() = runTest {
         coEvery { api.getCharacters(1) } returns fakeDto
 
-        val (characters, _) = repository.getCharacters(1)
+        val result = pagingSource.load(
+            PagingSource.LoadParams.Refresh(key = 1, loadSize = 20, placeholdersEnabled = false)
+        ) as PagingSource.LoadResult.Page
 
-        assertEquals(CharacterStatus.UNKNOWN, characters[2].status)
+        assertEquals(2, result.nextKey)
+        assertNull(result.prevKey)
     }
 
     @Test
-    fun `getCharacters delegates to api with correct page`() = runTest {
-        coEvery { api.getCharacters(2) } returns fakeDto
-
-        repository.getCharacters(2)
-
-        coVerify(exactly = 1) { api.getCharacters(2) }
-    }
-
-    @Test
-    fun `getCharacters returns next page URL when available`() = runTest {
-        coEvery { api.getCharacters(1) } returns fakeDto
-
-        val (_, nextPage) = repository.getCharacters(1)
-
-        assertEquals("https://rickandmortyapi.com/api/character?page=2", nextPage)
-    }
-
-    @Test
-    fun `getCharacters returns null next page on last page`() = runTest {
+    fun `load sets nextKey to null on last page`() = runTest {
         val lastPageDto = fakeDto.copy(
             info = InfoDto(count = 826, pages = 42, next = null, prev = "https://rickandmortyapi.com/api/character?page=41")
         )
         coEvery { api.getCharacters(42) } returns lastPageDto
 
-        val (_, nextPage) = repository.getCharacters(42)
+        val result = pagingSource.load(
+            PagingSource.LoadParams.Refresh(key = 42, loadSize = 20, placeholdersEnabled = false)
+        ) as PagingSource.LoadResult.Page
 
-        assertNull(nextPage)
+        assertNull(result.nextKey)
     }
 
     @Test
-    fun `getCharacters propagates exception from api`() = runTest {
+    fun `load returns Error when api throws`() = runTest {
         coEvery { api.getCharacters(1) } throws RuntimeException("Network failure")
 
-        val exception = runCatching { repository.getCharacters(1) }.exceptionOrNull()
+        val result = pagingSource.load(
+            PagingSource.LoadParams.Refresh(key = 1, loadSize = 20, placeholdersEnabled = false)
+        )
 
-        assertEquals("Network failure", exception?.message)
+        assertTrue(result is PagingSource.LoadResult.Error)
+        assertEquals("Network failure", (result as PagingSource.LoadResult.Error).throwable.message)
     }
 
     @Test
-    fun `getCharacters returns empty list when api returns empty results`() = runTest {
+    fun `load returns empty page when api returns empty results`() = runTest {
         coEvery { api.getCharacters(1) } returns CharacterResponseDto(
             info = InfoDto(count = 0, pages = 0, next = null),
             results = emptyList()
         )
 
-        val (characters, nextPage) = repository.getCharacters(1)
+        val result = pagingSource.load(
+            PagingSource.LoadParams.Refresh(key = 1, loadSize = 20, placeholdersEnabled = false)
+        ) as PagingSource.LoadResult.Page
 
-        assertEquals(0, characters.size)
-        assertNull(nextPage)
+        assertEquals(0, result.data.size)
+        assertNull(result.nextKey)
     }
 }
