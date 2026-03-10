@@ -234,14 +234,17 @@ private fun CharacterList(
 
 @Composable
 private fun TopBar(title: String) {
+    val bgColor = MaterialTheme.colorScheme.background
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onBgColor = MaterialTheme.colorScheme.onBackground
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF050510),
-                        Color(0x00050510)
+                        bgColor,
+                        bgColor.copy(alpha = 0f)
                     )
                 )
             )
@@ -259,8 +262,8 @@ private fun TopBar(title: String) {
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFF00D4AA),
-                                Color(0x3300D4AA),
+                                primaryColor,
+                                primaryColor.copy(alpha = 0.2f),
                                 Color.Transparent
                             )
                         )
@@ -276,9 +279,9 @@ private fun TopBar(title: String) {
                     .drawWithCache {
                         val gradient: Brush = Brush.linearGradient(
                             colors = listOf(
-                                Color(0xFFFFFFFF),
-                                Color(0xFFA0C8FF),
-                                Color(0xFF00D4AA)
+                                onBgColor,
+                                onBgColor.copy(alpha = 0.7f),
+                                primaryColor
                             )
                         )
                         onDrawWithContent {

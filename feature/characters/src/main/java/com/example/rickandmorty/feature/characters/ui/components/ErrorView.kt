@@ -42,28 +42,28 @@ fun ErrorView(
             imageVector = Icons.Rounded.Warning,
             contentDescription = "Error icon",
             modifier = Modifier.size(72.dp),
-            tint = Color(0xFFFF4D6D)
+            tint = MaterialTheme.colorScheme.error
         )
         Text(
             text = title,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFFF0F0FF),
+            color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Text(
             text = message,
             fontSize = 14.sp,
-            color = Color(0x669696BE),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
         OutlinedButton(
             onClick = onRetry,
             modifier = Modifier
                 .fillMaxWidth(0.6f)
-                .border(1.dp, Color(0xFF00D4AA), MaterialTheme.shapes.medium),
+                .border(1.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium),
             colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = Color(0xFF00D4AA)
+                contentColor = MaterialTheme.colorScheme.primary
             )
         ) {
             Text(text = retryLabel, fontWeight = FontWeight.SemiBold)

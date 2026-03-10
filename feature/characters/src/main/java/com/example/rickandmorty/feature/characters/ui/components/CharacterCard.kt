@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
@@ -50,6 +51,9 @@ fun CharacterCard(
         CharacterStatus.UNKNOWN -> UnknownColor
     }
 
+    val cardBackground = MaterialTheme.colorScheme.surface
+    val cardBorder = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -57,10 +61,10 @@ fun CharacterCard(
             .clip(RoundedCornerShape(18.dp))
             .border(
                 width = 1.dp,
-                color = Color(0x12FFFFFF),
+                color = cardBorder,
                 shape = RoundedCornerShape(18.dp)
             )
-            .background(Color(0x0AFFFFFF))
+            .background(cardBackground)
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
 
@@ -85,13 +89,13 @@ fun CharacterCard(
                         .align(Alignment.TopStart)
                         .padding(6.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0x99000000))
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "#${character.id.toString().padStart(3, '0')}",
                         fontSize = 9.sp,
-                        color = Color(0x8DC8C8E6),
+                        color = Color.White.copy(alpha = 0.85f),
                         letterSpacing = 0.8.sp
                     )
                 }
@@ -114,7 +118,7 @@ fun CharacterCard(
                     text = character.name,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp,
-                    color = Color(0xFFF0F0FF),
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     lineHeight = 19.sp
                 )

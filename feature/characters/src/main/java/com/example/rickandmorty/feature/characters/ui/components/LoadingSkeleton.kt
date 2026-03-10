@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -40,8 +41,8 @@ fun LoadingSkeletonList(count: Int = 6) {
 
 @Composable
 private fun SkeletonCharacterCard() {
-    val baseColor = Color(0xFF0D0D1A)
-    val highlightColor = Color(0xFF1A1A2E)
+    val baseColor = MaterialTheme.colorScheme.surfaceVariant
+    val highlightColor = MaterialTheme.colorScheme.surface
     val shimmerColors: List<Color> = listOf(baseColor, highlightColor, baseColor)
 
     val transition: InfiniteTransition = rememberInfiniteTransition(label = "shimmer")
@@ -66,8 +67,8 @@ private fun SkeletonCharacterCard() {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(18.dp))
-            .border(1.dp, Color(0x08FFFFFF), RoundedCornerShape(18.dp))
-            .background(Color(0x08FFFFFF))
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(18.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
         Row(modifier = Modifier.height(IntrinsicSize.Min)) {
             Box(
